@@ -20,11 +20,14 @@
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900">Meals</h1>
-            <p class="mt-1 text-sm text-slate-500">Lunch and dinner entries for <span class="font-medium text-slate-700">{{ $monthLabel }}</span>.</p>
+            <p class="mt-1 text-sm text-slate-500">Breakfast, lunch, dinner, and guest meal entries for <span class="font-medium text-slate-700">{{ $monthLabel }}</span>.</p>
         </div>
-        <a href="{{ route('meals.create') }}" class="btn-cta">
-            Add meal
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('meals.bulk.form') }}" class="btn btn-primary">Bulk Add Meals</a>
+            <a href="{{ route('meals.create') }}" class="btn-cta">
+                Add meal
+            </a>
+        </div>
     </div>
 
     @if ($meals->isEmpty())
@@ -32,23 +35,32 @@
             No meals for {{ $monthLabel }}. <a href="{{ route('meals.create') }}" class="link-inline">Add one</a>.
         </div>
     @else
+        <form method="POST" action="{{ route('meals.bulk.delete') }}">
+            @csrf
         <div class="table-surface">
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse text-left text-sm text-slate-700">
                     <thead>
                         <tr class="border-b border-slate-200 bg-gray-100">
+                            <th><input type="checkbox" id="selectAll"></th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">User</th>
+                            <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Breakfast</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Lunch</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Dinner</th>
+                            <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Guest Meals</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @foreach ($meals as $meal)
                             <tr class="table-row-interactive">
+                                <td>
+                                    <input type="checkbox" name="ids[]" value="{{ $meal->id }}">
+                                </td>
                                 <td class="px-6 py-5 text-slate-600">{{ $meal->date->format('M j, Y') }}</td>
                                 <td class="px-6 py-5 font-medium text-slate-900">{{ $meal->user->name }}</td>
+                                <td class="px-6 py-5 text-slate-700">{{ $meal->breakfast }}</td>
                                 <td class="px-6 py-5">
                                     @if ($meal->lunch)
                                         <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Yes</span>
@@ -63,6 +75,7 @@
                                         <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-slate-600">No</span>
                                     @endif
                                 </td>
+                                <td class="px-6 py-5 text-slate-700">{{ $meal->guest_meals }}</td>
                                 <td class="whitespace-nowrap px-6 py-5 text-right">
                                     <div class="flex flex-wrap items-center justify-end gap-3">
                                         <a href="{{ route('meals.edit', $meal) }}" class="action-link">Edit</a>
@@ -80,5 +93,19 @@
                 </table>
             </div>
         </div>
+        <button type="submit" class="mt-3 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500/30">
+            Delete Selected
+        </button>
+        </form>
     @endif
 @endsection
+
+<script>
+const selectAll = document.getElementById('selectAll');
+if (selectAll) {
+selectAll.onclick = function() {
+    let checkboxes = document.querySelectorAll('input[name="ids[]"]');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+};
+}
+</script>

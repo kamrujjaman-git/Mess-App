@@ -20,16 +20,10 @@ class MarketExpense extends Model
         'note',
     ];
 
-    /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'amount' => 'decimal:2',
-            'date' => 'date',
-        ];
-    }
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'date' => 'date',
+    ];
 
     public function user(): BelongsTo
     {

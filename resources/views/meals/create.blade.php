@@ -5,7 +5,7 @@
 @section('content')
     <div class="mx-auto max-w-lg">
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Add meal</h1>
-        <p class="mt-1 text-sm text-slate-500">Log lunch and dinner for a member.</p>
+        <p class="mt-1 text-sm text-slate-500">Log meal quantities for a member.</p>
 
         @if ($users->isEmpty())
             <div class="form-callout">
@@ -37,26 +37,39 @@
                     <p class="form-error">{{ $message }}</p>
                 @enderror
             </div>
-            <fieldset class="form-fieldset">
-                <legend class="form-fieldset-legend">Meals</legend>
-                <div class="mt-4 space-y-1">
-                    <label class="form-check">
-                        <input type="checkbox" name="lunch" id="lunch" value="1" class="form-check-input" @checked(old('lunch'))>
-                        <span class="form-check-label">Lunch</span>
-                    </label>
-                    @error('lunch')
-                        <p class="form-error">{{ $message }}</p>
-                    @enderror
-                    <label class="form-check">
-                        <input type="checkbox" name="dinner" id="dinner" value="1" class="form-check-input" @checked(old('dinner'))>
-                        <span class="form-check-label">Dinner</span>
-                    </label>
-                    @error('dinner')
-                        <p class="form-error">{{ $message }}</p>
-                    @enderror
-                </div>
-                <p class="form-hint">At most one meal record per user per day.</p>
-            </fieldset>
+            <div>
+                <label for="breakfast" class="form-label">Breakfast</label>
+                <input type="number" name="breakfast" id="breakfast" value="{{ old('breakfast', 0) }}" min="0"
+                       class="form-control @error('breakfast') form-control-invalid @enderror">
+                @error('breakfast')
+                    <p class="form-error">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label for="guest_meals" class="form-label">Guest Meals</label>
+                <input type="number" name="guest_meals" id="guest_meals" value="{{ old('guest_meals', 0) }}" min="0"
+                       class="form-control @error('guest_meals') form-control-invalid @enderror">
+                @error('guest_meals')
+                    <p class="form-error">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label for="lunch" class="form-label">Lunch</label>
+                <input type="number" name="lunch" id="lunch" value="{{ old('lunch', 0) }}" min="0"
+                       class="form-control @error('lunch') form-control-invalid @enderror">
+                @error('lunch')
+                    <p class="form-error">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label for="dinner" class="form-label">Dinner</label>
+                <input type="number" name="dinner" id="dinner" value="{{ old('dinner', 0) }}" min="0"
+                       class="form-control @error('dinner') form-control-invalid @enderror">
+                @error('dinner')
+                    <p class="form-error">{{ $message }}</p>
+                @enderror
+            </div>
+            <p class="form-hint">At most one meal record per user per day.</p>
             <div class="form-actions">
                 <button type="submit" @disabled($users->isEmpty()) class="form-btn-primary">Save meal</button>
                 <a href="{{ route('meals.index') }}" class="form-btn-secondary">Cancel</a>

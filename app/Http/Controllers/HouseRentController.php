@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesControllerErrors;
 use App\Models\HouseRent;
 use App\Models\User;
+use App\Support\Money;
 use App\Support\Month;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -35,10 +36,11 @@ class HouseRentController extends Controller
                 ->orderByDesc('id')
                 ->get();
 
-            $totalRent = (string) (HouseRent::query()
-                ->where('month', $selectedMonth)
-                ->selectRaw('COALESCE(ROUND(SUM(amount), 2), 0) as total_amount')
-                ->value('total_amount') ?? '0.00');
+            $totalRentCents = $houseRents->reduce(
+                fn (int $carry, HouseRent $rent): int => $carry + Money::inputToCents((string) $rent->amount),
+                0
+            );
+            $totalRent = Money::centsToString($totalRentCents);
 
             if ($request->wantsJson()) {
                 return response()->json($houseRents);
@@ -54,6 +56,7 @@ class HouseRentController extends Controller
             $this->logControllerError($e, 'house_rents.index_failed', [
                 'month' => $request->input('month'),
             ]);
+
             return $this->errorResponse($request, 'house-rents.index');
         }
     }
@@ -63,7 +66,7 @@ class HouseRentController extends Controller
         try {
             $request->validate([
                 'user_id' => 'required|exists:users,id',
-                'amount' => 'required|numeric|min:0',
+                'amount' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
                 'month' => 'required|date_format:Y-m',
                 'note' => 'nullable|string',
             ]);
@@ -73,12 +76,13 @@ class HouseRentController extends Controller
                 $this->logMissingData('house_rents.invalid_month_input', [
                     'month' => $request->input('month'),
                 ]);
+
                 return redirect()->back()->withInput()->withErrors(['month' => 'Enter a valid month.']);
             }
 
             $houseRent = HouseRent::create([
                 'user_id' => $request->user_id,
-                'amount' => number_format((float) $request->amount, 2, '.', ''),
+                'amount' => Money::centsToString(Money::inputToCents((string) $request->input('amount'))),
                 'month' => $request->month,
                 'note' => $request->note,
             ]);
@@ -88,13 +92,14 @@ class HouseRentController extends Controller
                 return response()->json($houseRent, 201);
             }
 
-            return redirect()->route('house-rents.index', ['month' => $request->month])
-                ->with('success', 'House rent recorded successfully.');
+            return redirect()->route('house-rents.index')
+                ->with('success', 'House rent added successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'house_rents.insert_failed', [
                 'user_id' => $request->input('user_id'),
                 'month' => $request->input('month'),
             ]);
+
             return $this->errorResponse($request, 'house-rents.index');
         }
     }
@@ -112,7 +117,7 @@ class HouseRentController extends Controller
         try {
             $request->validate([
                 'user_id' => ['required', 'integer', 'exists:users,id'],
-                'amount' => ['required', 'numeric', 'min:0'],
+                'amount' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
                 'month' => ['required', 'date_format:Y-m'],
                 'note' => ['nullable', 'string'],
             ]);
@@ -123,12 +128,13 @@ class HouseRentController extends Controller
                     'id' => $houseRent->id,
                     'month' => $request->input('month'),
                 ]);
+
                 return redirect()->back()->withInput()->withErrors(['month' => 'Enter a valid month.']);
             }
 
             $houseRent->update([
                 'user_id' => $request->user_id,
-                'amount' => number_format((float) $request->amount, 2, '.', ''),
+                'amount' => Money::centsToString(Money::inputToCents((string) $request->input('amount'))),
                 'month' => $request->month,
                 'note' => $request->note,
             ]);
@@ -138,14 +144,45 @@ class HouseRentController extends Controller
                 return response()->json($houseRent->fresh(['user']));
             }
 
-            return redirect()->route('house-rents.index', ['month' => $request->month])
-                ->with('success', 'House rent updated successfully.');
+            return redirect()->route('house-rents.index')
+                ->with('success', 'House rent added successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'house_rents.update_failed', [
                 'id' => $houseRent->id,
             ]);
+
             return $this->errorResponse($request, 'house-rents.index');
         }
+    }
+
+    public function bulkForm(): View
+    {
+        $users = User::query()->orderBy('name')->get();
+
+        return view('house-rents.bulk', ['users' => $users]);
+    }
+
+    public function bulkStore(Request $request): RedirectResponse
+    {
+        $data = $request->meals ?? [];
+
+        foreach ($data as $rent) {
+            HouseRent::create([
+                'user_id' => $rent['user_id'],
+                'amount' => Money::centsToString(Money::inputToCents((string) ($rent['amount'] ?? 0))),
+                'month' => $rent['month'],
+                'note' => $rent['note'] ?? null,
+            ]);
+        }
+
+        return redirect()->route('house-rents.index')->with('success', 'Bulk house rent added successfully!');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        \App\Models\HouseRent::whereIn('id', $request->ids)->delete();
+
+        return back()->with('success', 'Deleted successfully!');
     }
 
     public function destroy(Request $request, HouseRent $houseRent): JsonResponse|RedirectResponse
@@ -158,12 +195,13 @@ class HouseRentController extends Controller
                 return response()->json(null, 204);
             }
 
-            return redirect()->route('house-rents.index', ['month' => $month])
-                ->with('success', 'House rent deleted successfully.');
+            return redirect()->route('house-rents.index')
+                ->with('success', 'House rent added successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'house_rents.delete_failed', [
                 'id' => $houseRent->id,
             ]);
+
             return $this->errorResponse($request, 'house-rents.index');
         }
     }

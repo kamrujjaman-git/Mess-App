@@ -20,8 +20,8 @@
                 @include('partials.navbar')
 
                 <main class="flex-1">
-                @if (session('success'))
-                    <div id="app-flash-success" data-dismiss-ms="4500" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm">
+                @if(session('success'))
+                    <div class="bg-green-100 text-green-800 p-3 rounded mb-4">
                         {{ session('success') }}
                     </div>
                 @endif

@@ -22,9 +22,12 @@
             <h1 class="text-2xl font-bold tracking-tight text-slate-900">Expenses</h1>
             <p class="mt-1 text-sm text-slate-500">Market expense records for <span class="font-medium text-slate-700">{{ $monthLabel }}</span>.</p>
         </div>
-        <a href="{{ route('expenses.create') }}" class="btn-cta">
-            Add expense
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('expenses.bulkForm') }}" class="btn btn-primary">Bulk Add Expenses</a>
+            <a href="{{ route('expenses.create') }}" class="btn-cta">
+                Add expense
+            </a>
+        </div>
     </div>
 
     @if ($expenses->isEmpty())
@@ -32,11 +35,15 @@
             No expenses for {{ $monthLabel }}. <a href="{{ route('expenses.create') }}" class="link-inline">Add one</a>.
         </div>
     @else
+        <form method="POST" action="{{ route('expenses.bulk.delete') }}">
+            @csrf
+            @method('DELETE')
         <div class="table-surface">
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse text-left text-sm text-slate-700">
                     <thead>
                         <tr class="border-b border-slate-200 bg-gray-100">
+                            <th><input type="checkbox" id="selectAll"></th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-xs font-semibold uppercase tracking-wider text-slate-500">User</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Amount</th>
@@ -47,6 +54,9 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @foreach ($expenses as $expense)
                             <tr class="table-row-interactive">
+                                <td>
+                                    <input type="checkbox" name="ids[]" value="{{ $expense->id }}">
+                                </td>
                                 <td class="px-6 py-5 text-slate-600">{{ $expense->date->format('M j, Y') }}</td>
                                 <td class="px-6 py-5 font-medium text-slate-900">{{ $expense->user->name }}</td>
                                 <td class="px-6 py-5 text-right tabular-nums text-slate-900">{{ number_format((float) $expense->amount, 2) }}</td>
@@ -68,5 +78,15 @@
                 </table>
             </div>
         </div>
+        <button type="submit" class="btn btn-danger">Delete Selected</button>
+        </form>
     @endif
 @endsection
+
+<script>
+document.getElementById('selectAll').addEventListener('click', function(e) {
+    document.querySelectorAll('input[name="ids[]"]').forEach(cb => {
+        cb.checked = e.target.checked;
+    });
+});
+</script>

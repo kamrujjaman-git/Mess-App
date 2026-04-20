@@ -71,7 +71,7 @@ class UserController extends Controller
                 return response()->json($user, 201);
             }
 
-            return redirect()->route('dashboard')->with('success', 'User created successfully.');
+            return redirect()->route('users.index')->with('success', 'User saved successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'users.insert_failed', [
                 'email' => $request->input('email'),
@@ -106,7 +106,7 @@ class UserController extends Controller
                 return response()->json($user->fresh());
             }
 
-            return redirect()->route('users.index')->with('success', 'User updated successfully.');
+            return redirect()->route('users.index')->with('success', 'User saved successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'users.update_failed', [
                 'id' => $user->id,
@@ -127,7 +127,7 @@ class UserController extends Controller
                 return response()->json(null, 204);
             }
 
-            return redirect()->route('users.index')->with('success', 'User deleted successfully.');
+            return redirect()->route('users.index')->with('success', 'User saved successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'users.delete_failed', [
                 'id' => $user->id,

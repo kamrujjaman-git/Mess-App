@@ -33,8 +33,9 @@
 
             <div>
                 <label for="maid-bill-amount" class="form-label">Amount</label>
-                <input type="number" name="amount" id="maid-bill-amount" value="{{ old('amount') }}"
-                       step="0.01" min="0" required inputmode="decimal" placeholder="0.00"
+                <input type="text" name="amount" id="maid-bill-amount" value="{{ old('amount') }}"
+                       required inputmode="decimal" autocomplete="off" placeholder="0.00"
+                       pattern="^\d+(\.\d{1,2})?$"
                        class="form-control tabular-nums @error('amount') form-control-invalid @enderror">
                 @error('amount')
                     <p class="form-error">{{ $message }}</p>

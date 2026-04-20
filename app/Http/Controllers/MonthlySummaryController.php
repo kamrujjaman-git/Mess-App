@@ -11,6 +11,7 @@ use App\Models\Meal;
 use App\Models\User;
 use App\Support\Money;
 use App\Support\Month;
+use Illuminate\Support\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -27,17 +28,20 @@ class MonthlySummaryController extends Controller
 
             $startDate = $month.'-01';
 
-            $totalExpenseCents = (int) (MarketExpense::query()
+            $totalExpenseCents = MarketExpense::query()
                 ->whereYear('date', $year)
                 ->whereMonth('date', $monthNum)
-                ->selectRaw('COALESCE(SUM(amount * 100), 0) as cents')
-                ->value('cents') ?? 0);
+                ->get(['amount'])
+                ->reduce(
+                    fn (int $carry, MarketExpense $expense): int => $carry + Money::inputToCents((string) $expense->amount),
+                    0
+                );
 
             $totalMeals = (int) (Meal::query()
                 ->whereYear('date', $year)
                 ->whereMonth('date', $monthNum)
                 ->selectRaw(
-                    'SUM(CASE WHEN lunch THEN 1 ELSE 0 END + CASE WHEN dinner THEN 1 ELSE 0 END) as meal_units'
+                    'SUM(COALESCE(breakfast, 0) + CASE WHEN lunch THEN 1 ELSE 0 END + CASE WHEN dinner THEN 1 ELSE 0 END + COALESCE(guest_meals, 0)) as meal_units'
                 )
                 ->value('meal_units') ?? 0);
 
@@ -56,28 +60,43 @@ class MonthlySummaryController extends Controller
                 ->whereMonth('date', $monthNum)
                 ->groupBy('user_id')
                 ->selectRaw(
-                    'user_id, SUM(CASE WHEN lunch THEN 1 ELSE 0 END + CASE WHEN dinner THEN 1 ELSE 0 END) as units'
+                    'user_id, SUM(COALESCE(breakfast, 0) + CASE WHEN lunch THEN 1 ELSE 0 END + CASE WHEN dinner THEN 1 ELSE 0 END + COALESCE(guest_meals, 0)) as units'
                 )
                 ->pluck('units', 'user_id');
 
             $advanceByUser = AdvancePayment::query()
                 ->whereYear('date', $year)
                 ->whereMonth('date', $monthNum)
+                ->get(['user_id', 'amount'])
                 ->groupBy('user_id')
-                ->selectRaw('user_id, COALESCE(SUM(amount * 100), 0) as cents')
-                ->pluck('cents', 'user_id');
+                ->map(
+                    fn (Collection $rows): int => $rows->reduce(
+                        fn (int $carry, AdvancePayment $payment): int => $carry + Money::inputToCents((string) $payment->amount),
+                        0
+                    )
+                );
 
             $rentByUser = HouseRent::query()
                 ->where('month', $month)
+                ->get(['user_id', 'amount'])
                 ->groupBy('user_id')
-                ->selectRaw('user_id, COALESCE(SUM(amount * 100), 0) as cents')
-                ->pluck('cents', 'user_id');
+                ->map(
+                    fn (Collection $rows): int => $rows->reduce(
+                        fn (int $carry, HouseRent $rent): int => $carry + Money::inputToCents((string) $rent->amount),
+                        0
+                    )
+                );
 
             $maidByUser = MaidBill::query()
                 ->where('month', $month)
+                ->get(['user_id', 'amount'])
                 ->groupBy('user_id')
-                ->selectRaw('user_id, COALESCE(SUM(amount * 100), 0) as cents')
-                ->pluck('cents', 'user_id');
+                ->map(
+                    fn (Collection $rows): int => $rows->reduce(
+                        fn (int $carry, MaidBill $bill): int => $carry + Money::inputToCents((string) $bill->amount),
+                        0
+                    )
+                );
 
             $users = User::query()->orderBy('name')->get();
             if ($users->isEmpty()) {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesControllerErrors;
 use App\Models\MaidBill;
 use App\Models\User;
+use App\Support\Money;
 use App\Support\Month;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -35,10 +36,11 @@ class MaidBillController extends Controller
                 ->orderByDesc('id')
                 ->get();
 
-            $totalMaid = (string) (MaidBill::query()
-                ->where('month', $selectedMonth)
-                ->selectRaw('COALESCE(ROUND(SUM(amount), 2), 0) as total_amount')
-                ->value('total_amount') ?? '0.00');
+            $totalMaidCents = $maidBills->reduce(
+                fn (int $carry, MaidBill $bill): int => $carry + Money::inputToCents((string) $bill->amount),
+                0
+            );
+            $totalMaid = Money::centsToString($totalMaidCents);
 
             if ($request->wantsJson()) {
                 return response()->json($maidBills);
@@ -54,6 +56,7 @@ class MaidBillController extends Controller
             $this->logControllerError($e, 'maid_bills.index_failed', [
                 'month' => $request->input('month'),
             ]);
+
             return $this->errorResponse($request, 'maid-bills.index');
         }
     }
@@ -63,7 +66,7 @@ class MaidBillController extends Controller
         try {
             $request->validate([
                 'user_id' => 'required|exists:users,id',
-                'amount' => 'required|numeric|min:0',
+                'amount' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
                 'month' => 'required|date_format:Y-m',
                 'note' => 'nullable|string',
             ]);
@@ -73,12 +76,13 @@ class MaidBillController extends Controller
                 $this->logMissingData('maid_bills.invalid_month_input', [
                     'month' => $request->input('month'),
                 ]);
+
                 return redirect()->back()->withInput()->withErrors(['month' => 'Enter a valid month.']);
             }
 
             $maidBill = MaidBill::create([
                 'user_id' => $request->user_id,
-                'amount' => number_format((float) $request->amount, 2, '.', ''),
+                'amount' => Money::centsToString(Money::inputToCents((string) $request->input('amount'))),
                 'month' => $request->month,
                 'note' => $request->note,
             ]);
@@ -88,13 +92,14 @@ class MaidBillController extends Controller
                 return response()->json($maidBill, 201);
             }
 
-            return redirect()->route('maid-bills.index', ['month' => $request->month])
-                ->with('success', 'Maid bill recorded successfully.');
+            return redirect()->route('maid-bills.index')
+                ->with('success', 'Maid bill updated successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'maid_bills.insert_failed', [
                 'user_id' => $request->input('user_id'),
                 'month' => $request->input('month'),
             ]);
+
             return $this->errorResponse($request, 'maid-bills.index');
         }
     }
@@ -112,7 +117,7 @@ class MaidBillController extends Controller
         try {
             $request->validate([
                 'user_id' => ['required', 'integer', 'exists:users,id'],
-                'amount' => ['required', 'numeric', 'min:0'],
+                'amount' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
                 'month' => ['required', 'date_format:Y-m'],
                 'note' => ['nullable', 'string'],
             ]);
@@ -123,12 +128,13 @@ class MaidBillController extends Controller
                     'id' => $maidBill->id,
                     'month' => $request->input('month'),
                 ]);
+
                 return redirect()->back()->withInput()->withErrors(['month' => 'Enter a valid month.']);
             }
 
             $maidBill->update([
                 'user_id' => $request->user_id,
-                'amount' => number_format((float) $request->amount, 2, '.', ''),
+                'amount' => Money::centsToString(Money::inputToCents((string) $request->input('amount'))),
                 'month' => $request->month,
                 'note' => $request->note,
             ]);
@@ -138,14 +144,45 @@ class MaidBillController extends Controller
                 return response()->json($maidBill->fresh(['user']));
             }
 
-            return redirect()->route('maid-bills.index', ['month' => $request->month])
-                ->with('success', 'Maid bill updated successfully.');
+            return redirect()->route('maid-bills.index')
+                ->with('success', 'Maid bill updated successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'maid_bills.update_failed', [
                 'id' => $maidBill->id,
             ]);
+
             return $this->errorResponse($request, 'maid-bills.index');
         }
+    }
+
+    public function bulkForm(): View
+    {
+        $users = User::query()->orderBy('name')->get();
+
+        return view('maid-bills.bulk', ['users' => $users]);
+    }
+
+    public function bulkStore(Request $request): RedirectResponse
+    {
+        $data = $request->meals ?? [];
+
+        foreach ($data as $bill) {
+            MaidBill::create([
+                'user_id' => $bill['user_id'],
+                'amount' => Money::centsToString(Money::inputToCents((string) ($bill['amount'] ?? 0))),
+                'month' => $bill['month'],
+                'note' => $bill['note'] ?? null,
+            ]);
+        }
+
+        return redirect()->route('maid-bills.index')->with('success', 'Bulk maid bills added successfully!');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        \App\Models\MaidBill::whereIn('id', $request->ids)->delete();
+
+        return back()->with('success', 'Deleted successfully!');
     }
 
     public function destroy(Request $request, MaidBill $maidBill): JsonResponse|RedirectResponse
@@ -158,12 +195,13 @@ class MaidBillController extends Controller
                 return response()->json(null, 204);
             }
 
-            return redirect()->route('maid-bills.index', ['month' => $month])
-                ->with('success', 'Maid bill deleted successfully.');
+            return redirect()->route('maid-bills.index')
+                ->with('success', 'Maid bill updated successfully');
         } catch (Throwable $e) {
             $this->logControllerError($e, 'maid_bills.delete_failed', [
                 'id' => $maidBill->id,
             ]);
+
             return $this->errorResponse($request, 'maid-bills.index');
         }
     }

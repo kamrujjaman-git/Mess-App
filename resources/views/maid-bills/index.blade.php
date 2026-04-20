@@ -27,10 +27,13 @@
                 <span class="text-slate-600">{{ $monthLabel }}</span>
             </p>
         </div>
-        <a href="{{ route('maid-bills.create', ['month' => $month]) }}"
-           class="btn-cta">
-            Add bill
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('maid-bills.bulkForm') }}" class="btn btn-primary">Bulk Add Bills</a>
+            <a href="{{ route('maid-bills.create', ['month' => $month]) }}"
+               class="btn-cta">
+                Add bill
+            </a>
+        </div>
     </div>
 
     @if ($maidBills->isEmpty())
@@ -39,11 +42,15 @@
             <a href="{{ route('maid-bills.create', ['month' => $month]) }}" class="link-inline">Add an entry</a>.
         </div>
     @else
+        <form method="POST" action="{{ route('maid-bills.bulk.delete') }}">
+            @csrf
+            @method('DELETE')
         <div class="table-surface">
             <div class="overflow-x-auto">
                 <table class="min-w-full border-collapse text-left text-sm text-slate-700">
                     <thead>
                         <tr class="border-b border-slate-200 bg-gray-100">
+                            <th><input type="checkbox" id="selectAll"></th>
                             <th scope="col" class="whitespace-nowrap px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">User</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Amount</th>
                             <th scope="col" class="whitespace-nowrap px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Month</th>
@@ -54,6 +61,9 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @foreach ($maidBills as $bill)
                             <tr class="table-row-interactive">
+                                <td>
+                                    <input type="checkbox" name="ids[]" value="{{ $bill->id }}">
+                                </td>
                                 <th scope="row" class="px-6 py-4 font-medium text-slate-900">{{ $bill->user->name }}</th>
                                 <td class="px-6 py-4 text-right tabular-nums text-slate-900">{{ number_format($bill->amount, 2) }}</td>
                                 <td class="px-6 py-4 tabular-nums text-slate-700">{{ $bill->month }}</td>
@@ -82,11 +92,21 @@
                             <td class="px-6 py-4 text-right tabular-nums text-slate-900">
                                 Total: {{ number_format($totalMaid, 2) }}
                             </td>
-                            <td class="px-6 py-4" colspan="3"></td>
+                            <td class="px-6 py-4" colspan="4"></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
+        <button type="submit" class="btn btn-danger">Delete Selected</button>
+        </form>
     @endif
 @endsection
+
+<script>
+document.getElementById('selectAll').addEventListener('click', function(e) {
+    document.querySelectorAll('input[name="ids[]"]').forEach(cb => {
+        cb.checked = e.target.checked;
+    });
+});
+</script>

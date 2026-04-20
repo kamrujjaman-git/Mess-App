@@ -15,9 +15,9 @@
                 <label for="maid-bill-user-id" class="form-label">User</label>
                 <select name="user_id" id="maid-bill-user-id" required
                         class="form-control @error('user_id') form-control-invalid @enderror">
-                    <option value="" selected>Select User</option>
+                    <option value="" disabled @selected(! old('user_id', $maidBill->user_id))>Select User</option>
                     @foreach ($users as $user)
-                        <option value="{{ $user->id }}">{{ $user->name }}</option>
+                        <option value="{{ $user->id }}" @selected((string) old('user_id', $maidBill->user_id) === (string) $user->id)>{{ $user->name }}</option>
                     @endforeach
                 </select>
                 @error('user_id')
@@ -27,9 +27,10 @@
 
             <div>
                 <label for="maid-bill-amount" class="form-label">Amount</label>
-                <input type="number" name="amount" id="maid-bill-amount"
+                <input type="text" name="amount" id="maid-bill-amount"
                        value="{{ old('amount', $maidBill->amount) }}"
-                       step="0.01" min="0" required inputmode="decimal" placeholder="0.00"
+                       required inputmode="decimal" autocomplete="off" placeholder="0.00"
+                       pattern="^\d+(\.\d{1,2})?$"
                        class="form-control tabular-nums @error('amount') form-control-invalid @enderror">
                 @error('amount')
                     <p class="form-error">{{ $message }}</p>
